@@ -5,6 +5,11 @@ export const API_PATHS = {
   },
   link: {
     createCode: '/link/createCode',
-    monitorList: '/link/monitorList'
+    monitorList: '/link/monitorList',
+    monitorDetailRecords: '/link/monitorDetailRecords',
+    monitorTrend: '/link/monitorTrend',
+    monitorProvinceDistribution: '/link/monitorProvinceDistribution',
+    monitorLinkTitleDistribution: '/link/monitorLinkTitleDistribution',
+    deleteByLinkIds: '/link/deleteByLinkIds'
   }
 }
