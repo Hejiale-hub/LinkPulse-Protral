@@ -3,7 +3,7 @@
     <div class="footer-content">
       <div class="footer-brand">
         <h2>LinkPulse.</h2>
-        <p>面向现代学习者的在线教育平台，覆盖技能学习、进度追踪与成长沉淀。</p>
+        <p>构建一个智能的链接监控系统，帮助用户实时了解链接状态，及时发现并解决问题，提升用户体验和效率。</p>
       </div>
 
       <div class="footer-links-grid">
@@ -22,7 +22,7 @@
     </div>
 
     <div class="footer-bottom">
-      <p>&copy; 2026 EduPlatform. All rights reserved.</p>
+      <p>&copy; 2026 LinkPulse. All rights reserved.</p>
       <div class="social-links">
         <a href="#">Twitter</a>
         <a href="#">Instagram</a>
