@@ -90,10 +90,22 @@
           </header>
           <div v-if="trendData.length" class="line-chart">
             <svg viewBox="0 0 600 220" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#0f172a" stop-opacity="0.18" />
+                  <stop offset="100%" stop-color="#0f172a" stop-opacity="0.01" />
+                </linearGradient>
+              </defs>
+              <line class="trend-grid-h" x1="40" y1="80" x2="580" y2="80" />
+              <line class="trend-grid-h" x1="40" y1="135" x2="580" y2="135" />
               <polyline class="trend-grid" points="40,20 40,190 580,190" />
+              <polygon class="trend-area" :points="trendAreaPoints" />
+              <polyline class="trend-line-blur" :points="trendPolyline" />
               <polyline class="trend-line" :points="trendPolyline" />
               <g v-for="(dot, idx) in trendDots" :key="idx">
-                <circle :cx="dot.x" :cy="dot.y" r="3" class="trend-dot" />
+                <circle :cx="dot.x" :cy="dot.y" r="8" class="trend-dot-halo" />
+                <circle :cx="dot.x" :cy="dot.y" r="4.5" class="trend-dot-outer" />
+                <circle :cx="dot.x" :cy="dot.y" r="2" class="trend-dot-inner" />
               </g>
             </svg>
             <div class="line-axis">
@@ -317,27 +329,29 @@
             </div>
           </div>
 
-          <footer class="pagination-bar">
-            <button class="page-btn" :disabled="pagination.pageNo <= 1" @click="goPrev">Prev</button>
-            <button
-              v-for="page in visiblePages"
-              :key="page"
-              class="page-btn"
-              :class="{ active: page === pagination.pageNo }"
-              @click="goPage(page)"
-            >
-              {{ page }}
-            </button>
-            <button class="page-btn" :disabled="pagination.pageNo >= totalPages" @click="goNext">Next</button>
-
-            <select v-model.number="pagination.pageSize" class="page-size" @change="handlePageSizeChange">
-              <option :value="10">10 / page</option>
-              <option :value="20">20 / page</option>
-              <option :value="30">30 / page</option>
-            </select>
-          </footer>
         </template>
       </section>
+
+      <footer v-if="list.length && !loading" class="pagination-bar">
+        <div class="pagination-pages">
+          <button class="page-btn" :disabled="pagination.pageNo <= 1" @click="goPrev">Prev</button>
+          <button
+            v-for="page in visiblePages"
+            :key="page"
+            class="page-btn"
+            :class="{ active: page === pagination.pageNo }"
+            @click="goPage(page)"
+          >
+            {{ page }}
+          </button>
+          <button class="page-btn" :disabled="pagination.pageNo >= totalPages" @click="goNext">Next</button>
+        </div>
+        <select v-model.number="pagination.pageSize" class="page-size" @change="handlePageSizeChange">
+          <option :value="10">10 / page</option>
+          <option :value="20">20 / page</option>
+          <option :value="30">30 / page</option>
+        </select>
+      </footer>
     </template>
   </div>
 </template>
@@ -706,12 +720,18 @@ const totalPages = computed(() => {
 })
 
 const visiblePages = computed(() => {
-  const pages = []
   const total = totalPages.value
   const current = pagination.pageNo
-  const start = Math.max(1, current - 2)
-  const end = Math.min(total, current + 2)
+  const windowSize = 5
+  let start = Math.max(1, current - Math.floor(windowSize / 2))
+  let end = start + windowSize - 1
 
+  if (end > total) {
+    end = total
+    start = Math.max(1, end - windowSize + 1)
+  }
+
+  const pages = []
   for (let p = start; p <= end; p += 1) {
     pages.push(p)
   }
@@ -794,8 +814,17 @@ const trendPolyline = computed(() => {
   return trendDots.value.map((dot) => `${dot.x},${dot.y}`).join(' ')
 })
 
+const trendAreaPoints = computed(() => {
+  const dots = trendDots.value
+  if (!dots.length) return ''
+  const first = dots[0]
+  const last = dots[dots.length - 1]
+  const linePoints = dots.map((d) => `${d.x},${d.y}`).join(' ')
+  return `${linePoints} ${last.x},190 ${first.x},190`
+})
+
 const linkTitleLegend = computed(() => {
-  const colors = ['#0f172a', '#2563eb', '#16a34a', '#f59e0b', '#d946ef', '#ef4444']
+  const colors = ['#4a7c6f', '#7c6b4a', '#4a5e7c', '#7c4a6b', '#6b7c4a', '#7c4a4a', '#4a6b7c', '#7c724a']
   const rows = linkTitleDistribution.value
     .filter((item) => item.linkTitle !== '-' && item.clicks > 0)
     .sort((a, b) => b.clicks - a.clicks)
@@ -1206,10 +1235,28 @@ const provinceBarsByCode = (code) => {
 }
 
 .chart-card {
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  background: #fff;
-  padding: 14px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 22px;
+  background: linear-gradient(155deg, #ffffff 0%, #f1f5f9 100%);
+  padding: 16px 18px;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 4px 20px rgba(15, 23, 42, 0.06),
+    0 16px 48px rgba(15, 23, 42, 0.035),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  position: relative;
+  overflow: hidden;
+}
+
+.chart-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 15%;
+  right: 15%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.85), transparent);
+  pointer-events: none;
 }
 
 .chart-header {
@@ -1259,14 +1306,46 @@ const provinceBarsByCode = (code) => {
   stroke-width: 1;
 }
 
-.trend-line {
-  fill: none;
-  stroke: #2563eb;
-  stroke-width: 2.5;
+.trend-grid-h {
+  stroke: #e2e8f0;
+  stroke-width: 0.8;
+  stroke-dasharray: 5 4;
 }
 
-.trend-dot {
-  fill: #2563eb;
+.trend-area {
+  fill: url(#areaGradient);
+}
+
+.trend-line-blur {
+  fill: none;
+  stroke: #94a3b8;
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.35;
+}
+
+.trend-line {
+  fill: none;
+  stroke: #0f172a;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.trend-dot-halo {
+  fill: #0f172a;
+  opacity: 0.08;
+}
+
+.trend-dot-outer {
+  fill: #0f172a;
+  stroke: white;
+  stroke-width: 2;
+}
+
+.trend-dot-inner {
+  fill: white;
 }
 
 .line-axis {
@@ -1283,11 +1362,31 @@ const provinceBarsByCode = (code) => {
 }
 
 .pie {
-  width: 104px;
-  height: 104px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
-  border: 1px solid #e2e8f0;
+  border: none;
   flex-shrink: 0;
+  position: relative;
+  box-shadow:
+    0 4px 20px rgba(15, 23, 42, 0.14),
+    0 1px 4px rgba(15, 23, 42, 0.08);
+}
+
+.pie::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #f8fafc, #f1f5f9);
+  box-shadow:
+    0 2px 10px rgba(15, 23, 42, 0.1),
+    inset 0 1px 3px rgba(255, 255, 255, 0.95);
+  pointer-events: none;
 }
 
 .pie-legend {
@@ -1822,9 +1921,17 @@ const provinceBarsByCode = (code) => {
 .pagination-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  border-top: 1px solid #e2e8f0;
-  padding: 10px 14px;
+  justify-content: center;
+  position: relative;
+  gap: 12px;
+  padding: 10px 60px;
+  flex-shrink: 0;
+}
+
+.pagination-pages {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .page-btn {
@@ -1837,11 +1944,17 @@ const provinceBarsByCode = (code) => {
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.page-btn:hover:not(:disabled):not(.active) {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
 }
 
 .page-btn:disabled {
   cursor: not-allowed;
-  opacity: 0.5;
+  opacity: 0.4;
 }
 
 .page-btn.active {
@@ -1851,7 +1964,10 @@ const provinceBarsByCode = (code) => {
 }
 
 .page-size {
-  margin-left: auto;
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
   height: 32px;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
