@@ -72,7 +72,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { createLinkCodeAPI } from '../api/user'
+import { createLinkCodeAPI } from '../api/link'
 import { notifyError, notifyInfo, notifySuccess } from '../utils/notify'
 import { notifyErrorOnce } from '../utils/error-handler'
 import { useAuth } from '../composables/useAuth'
