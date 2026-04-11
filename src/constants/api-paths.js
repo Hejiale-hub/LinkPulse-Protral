@@ -3,6 +3,16 @@ export const API_PATHS = {
     login: '/user/login',
     register: '/user/register'
   },
+  ai: {
+    createChat: '/ai/createChat',
+    chat: '/ai/chat',
+    service: '/ai/service',
+    pdf: '/ai/pdf',
+    history: '/ai/history',
+    historyDetail: '/ai/history/detail',
+    historyDelete: '/ai/history/delete',
+    historyTitle: '/ai/history/title'
+  },
   link: {
     createCode: '/link/createCode',
     monitorList: '/link/monitorList',

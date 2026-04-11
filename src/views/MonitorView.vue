@@ -7,6 +7,8 @@
     </div>
 
     <template v-else>
+      <div class="monitor-workspace">
+        <div class="monitor-main">
       <div class="stats-row">
         <div class="stat-card">
           <span class="stat-label">Total Links</span>
@@ -352,12 +354,129 @@
           <option :value="30">30 / page</option>
         </select>
       </footer>
+
+        </div>
+
+        <button class="ai-fab" :class="{ active: isAiOpen }" @click="toggleAiPanel">
+          {{ isAiOpen ? 'Hide AI' : 'AI Chat' }}
+        </button>
+
+        <transition name="ai-pop">
+        <aside v-if="isAiOpen" class="ai-panel ai-popup">
+          <header class="ai-panel-header">
+            <div>
+              <h3>AI Assistant</h3>
+              <p>Session Workspace</p>
+            </div>
+            <div class="ai-header-actions">
+              <button class="ai-close-btn" :disabled="chatSending" @click="closeAiPanel">Close</button>
+            </div>
+          </header>
+
+          <div class="ai-workspace">
+            <section class="ai-session-pane">
+              <div class="ai-session-head">
+                <span>Sessions</span>
+                <button class="mini-refresh" :disabled="sessionLoading" @click="loadAiSessions">Refresh</button>
+              </div>
+
+              <div v-if="sessionLoading" class="ai-session-empty">Loading sessions...</div>
+
+              <div v-else-if="!aiSessions.length" class="ai-session-empty">No sessions yet</div>
+
+              <div v-else class="ai-session-list">
+                <div
+                  v-for="session in aiSessions"
+                  :key="session.chatId"
+                  class="ai-session-item"
+                  :class="{ active: session.chatId === activeChatId }"
+                >
+                  <button class="session-main" @click="selectAiSession(session.chatId)">
+                    <template v-if="editingChatId === session.chatId">
+                      <input
+                        v-model.trim="editingTitle"
+                        class="session-title-input"
+                        placeholder="请输入会话标题"
+                        :disabled="titleSavingChatId === session.chatId"
+                        @click.stop
+                        @keydown.enter.stop.prevent="saveSessionTitle(session.chatId)"
+                        @keydown.esc.stop.prevent="cancelRenameSession"
+                        @blur="saveSessionTitle(session.chatId)"
+                      />
+                    </template>
+                    <template v-else>
+                      <span class="session-id" :title="getSessionTitle(session)">{{ getSessionTitle(session) }}</span>
+                    </template>
+                    <span class="session-type">{{ session.type }}</span>
+                  </button>
+                  <button class="session-rename" :disabled="titleSavingChatId === session.chatId" @click.stop="startRenameSession(session.chatId)">Edit</button>
+                  <button class="session-delete" @click="removeAiSession(session.chatId)">Del</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="ai-chat-pane">
+              <template v-if="!activeChatId">
+                <div class="chat-create-state">
+                  <div class="chat-create-copy">
+                    <h4>New Session</h4>
+                    <p>选择一种会话类型开始新对话，或从左侧打开已有会话。</p>
+                  </div>
+                  <div class="chat-create-actions">
+                    <button class="create-type-btn" @click="createAiSession('chat')">新建 chat</button>
+                    <button class="create-type-btn" @click="createAiSession('service')">新建 service</button>
+                    <button class="create-type-btn" @click="createAiSession('pdf')">新建 pdf</button>
+                  </div>
+                </div>
+              </template>
+
+              <template v-else>
+                <div class="ai-type-actions">
+                  <button class="type-btn" @click="createAiSession('chat')">new chat</button>
+                  <button class="type-btn" @click="createAiSession('service')">new service</button>
+                  <button class="type-btn" @click="createAiSession('pdf')">new pdf</button>
+                  <span class="session-meta">{{ getSessionTitle(activeChatId) }} · {{ activeSessionType }}</span>
+                </div>
+
+                <div ref="chatScrollRef" class="ai-chat-list">
+                  <div v-if="aiDetailLoading" class="chat-empty-hint">Loading history...</div>
+                  <template v-else>
+                    <div v-for="item in activeMessages" :key="item.id" class="chat-row" :class="item.role">
+                      <div class="chat-role">{{ item.role === 'user' ? 'You' : 'AI' }}</div>
+                      <div class="chat-bubble">{{ item.content }}</div>
+                    </div>
+                  </template>
+                </div>
+
+                <div v-if="chatSending" class="chat-row assistant pending">
+                  <div class="chat-role">AI</div>
+                  <div class="chat-bubble">Thinking...</div>
+                </div>
+
+                <footer class="ai-input-wrap">
+                  <textarea
+                    v-model.trim="aiPrompt"
+                    class="ai-input"
+                    placeholder="请输入问题，Enter 发送"
+                    :disabled="chatSending || !activeChatId"
+                    @keydown.enter.exact.prevent="submitAiPrompt"
+                  ></textarea>
+                  <button class="ai-send-btn" :disabled="!aiPrompt || chatSending || !activeChatId" @click="submitAiPrompt">
+                    {{ chatSending ? 'Sending...' : 'Send' }}
+                  </button>
+                </footer>
+              </template>
+            </section>
+          </div>
+        </aside>
+        </transition>
+      </div>
     </template>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, reactive, watch } from 'vue'
+import { ref, computed, onMounted, reactive, watch, nextTick } from 'vue'
 import { useAuth } from '../composables/useAuth'
 import {
   getLinkMonitorListAPI,
@@ -366,6 +485,15 @@ import {
   getMonitorLinkTitleDistributionAPI,
   deleteLinksByIdsAPI
 } from '../api/link'
+import {
+  AI_CHAT_TYPES,
+  createAiSessionAPI,
+  getAiSessionsAPI,
+  getAiSessionDetailAPI,
+  deleteAiSessionAPI,
+  sendAiPromptAPI,
+  updateAiSessionTitleAPI
+} from '../api/ai'
 import { notifyErrorOnce } from '../utils/error-handler'
 import { notifySuccess } from '../utils/notify'
 
@@ -380,6 +508,20 @@ const trendData = ref([])
 const linkTitleDistribution = ref([])
 const isFilterExpanded = ref(true)
 const linkTitleTopN = ref(5)
+const isAiOpen = ref(false)
+const chatScrollRef = ref(null)
+const sessionLoading = ref(false)
+const aiDetailLoading = ref(false)
+const chatSending = ref(false)
+const aiPrompt = ref('')
+const aiSessions = ref([])
+const activeChatId = ref('')
+const selectedCreateType = ref(AI_CHAT_TYPES.chat)
+const activeMessages = ref([])
+const chatSeed = ref(1)
+const editingChatId = ref('')
+const editingTitle = ref('')
+const titleSavingChatId = ref('')
 
 const pagination = reactive({
   pageNo: 1,
@@ -401,6 +543,264 @@ const padZero = (num) => String(num).padStart(2, '0')
 
 const toDateInput = (date) => {
   return `${date.getFullYear()}-${padZero(date.getMonth() + 1)}-${padZero(date.getDate())}`
+}
+
+const normalizeAiRole = (role) => {
+  const value = String(role || '').trim().toLowerCase()
+  if (value === 'user' || value === 'human') return 'user'
+  return 'assistant'
+}
+
+const normalizeAiContent = (content) => {
+  const text = String(content || '').trim()
+  return text || '-'
+}
+
+const normalizeSessionRow = (row) => {
+  const chatId = String(row?.chatId || '').trim()
+  const type = String(row?.type || AI_CHAT_TYPES.chat).trim().toLowerCase()
+  return {
+    chatId,
+    type: Object.values(AI_CHAT_TYPES).includes(type) ? type : AI_CHAT_TYPES.chat,
+    sessionTitle: String(row?.sessionTitle || '').trim()
+  }
+}
+
+const findAiSession = (chatId) => {
+  return aiSessions.value.find((item) => item.chatId === chatId) || null
+}
+
+const getSessionTitle = (sessionOrChatId) => {
+  if (!sessionOrChatId) return ''
+
+  if (typeof sessionOrChatId === 'string') {
+    const session = findAiSession(sessionOrChatId)
+    return String(session?.sessionTitle || '').trim() || sessionOrChatId
+  }
+
+  return String(sessionOrChatId.sessionTitle || '').trim() || sessionOrChatId.chatId
+}
+
+const startRenameSession = (chatId) => {
+  editingChatId.value = chatId
+  editingTitle.value = getSessionTitle(chatId)
+}
+
+const cancelRenameSession = () => {
+  editingChatId.value = ''
+  editingTitle.value = ''
+}
+
+const saveSessionTitle = async (chatId) => {
+  if (titleSavingChatId.value === chatId) return
+
+  const nextTitle = String(editingTitle.value || '').trim()
+  if (!chatId) return
+  const session = findAiSession(chatId)
+  if (!session) {
+    cancelRenameSession()
+    return
+  }
+
+  const finalTitle = nextTitle
+
+  if (!finalTitle) {
+    notifyErrorOnce(new Error('empty title'), '会话标题不能为空')
+    return
+  }
+
+  if (finalTitle === session.sessionTitle) {
+    cancelRenameSession()
+    return
+  }
+
+  titleSavingChatId.value = chatId
+
+  try {
+    await updateAiSessionTitleAPI({
+      chatId,
+      sessionTitle: finalTitle
+    })
+
+    aiSessions.value = aiSessions.value.map((item) => {
+      if (item.chatId !== chatId) return item
+      return {
+        ...item,
+        sessionTitle: finalTitle
+      }
+    })
+  } catch (err) {
+    notifyErrorOnce(err, '会话标题保存失败')
+  } finally {
+    titleSavingChatId.value = ''
+    cancelRenameSession()
+  }
+}
+
+const scrollChatToBottom = async () => {
+  await nextTick()
+  if (!chatScrollRef.value) return
+  chatScrollRef.value.scrollTop = chatScrollRef.value.scrollHeight
+}
+
+const appendMessage = (role, content) => {
+  activeMessages.value = [
+    ...activeMessages.value,
+    {
+      id: `${activeChatId.value}-${chatSeed.value}`,
+      role: normalizeAiRole(role),
+      content: normalizeAiContent(content)
+    }
+  ]
+  chatSeed.value += 1
+}
+
+const activeSession = computed(() => findAiSession(activeChatId.value))
+
+const activeSessionType = computed(() => {
+  return activeSession.value?.type || selectedCreateType.value
+})
+
+const loadAiSessions = async () => {
+  sessionLoading.value = true
+  try {
+    const rows = await getAiSessionsAPI()
+    const sessions = rows.map(normalizeSessionRow).filter((item) => item.chatId)
+
+    aiSessions.value = sessions
+
+    if (activeChatId.value && !sessions.some((item) => item.chatId === activeChatId.value)) {
+      activeChatId.value = ''
+      activeMessages.value = []
+    }
+  } catch (err) {
+    notifyErrorOnce(err, '加载会话列表失败')
+  } finally {
+    sessionLoading.value = false
+  }
+}
+
+const selectAiSession = async (chatId) => {
+  if (!chatId) return
+  activeChatId.value = chatId
+  selectedCreateType.value = findAiSession(chatId)?.type || AI_CHAT_TYPES.chat
+
+  aiDetailLoading.value = true
+  try {
+    const rows = await getAiSessionDetailAPI(chatId)
+    activeMessages.value = rows.map((item) => ({
+      id: `${chatId}-${chatSeed.value++}`,
+      role: normalizeAiRole(item?.role),
+      content: normalizeAiContent(item?.content)
+    }))
+  } catch (err) {
+    notifyErrorOnce(err, '加载会话详情失败')
+    activeMessages.value = []
+  } finally {
+    aiDetailLoading.value = false
+    scrollChatToBottom()
+  }
+}
+
+const createAiSession = async (type) => {
+  const normalizedType = Object.values(AI_CHAT_TYPES).includes(type) ? type : AI_CHAT_TYPES.chat
+  selectedCreateType.value = normalizedType
+
+  try {
+    const session = await createAiSessionAPI(normalizedType)
+    if (!session?.chatId) {
+      notifyErrorOnce(new Error('empty chatId'), '创建会话失败：后端未返回 chatId')
+      return
+    }
+
+    if (!aiSessions.value.some((item) => item.chatId === session.chatId)) {
+      aiSessions.value = [session, ...aiSessions.value]
+    }
+
+    await selectAiSession(session.chatId)
+  } catch (err) {
+    notifyErrorOnce(err, `创建 ${normalizedType} 会话失败`)
+  }
+}
+
+const removeAiSession = async (chatId) => {
+  if (!chatId || chatSending.value) return
+
+  try {
+    await deleteAiSessionAPI(chatId)
+    aiSessions.value = aiSessions.value.filter((item) => item.chatId !== chatId)
+    if (editingChatId.value === chatId) {
+      cancelRenameSession()
+    }
+
+    if (activeChatId.value === chatId) {
+      activeChatId.value = ''
+      activeMessages.value = []
+    }
+  } catch (err) {
+    notifyErrorOnce(err, '删除会话失败')
+  }
+}
+
+const openAiPanel = async () => {
+  isAiOpen.value = true
+  await loadAiSessions()
+  await scrollChatToBottom()
+}
+
+const closeAiPanel = () => {
+  if (chatSending.value) return
+  isAiOpen.value = false
+}
+
+const toggleAiPanel = () => {
+  if (isAiOpen.value) {
+    closeAiPanel()
+    return
+  }
+  openAiPanel()
+}
+
+const submitAiPrompt = async () => {
+  const prompt = String(aiPrompt.value || '').trim()
+  if (!prompt || chatSending.value || !activeChatId.value) return
+
+  if (!isAiOpen.value) {
+    await openAiPanel()
+  }
+
+  appendMessage('user', prompt)
+  aiPrompt.value = ''
+  chatSending.value = true
+  scrollChatToBottom()
+
+  try {
+    const payload = await sendAiPromptAPI({
+      type: activeSessionType.value,
+      prompt,
+      chatId: activeChatId.value
+    })
+
+    const assistantRows = payload
+      .filter((item) => normalizeAiRole(item?.role) !== 'user')
+      .map((item) => ({
+        id: `${activeChatId.value}-${chatSeed.value++}`,
+        role: normalizeAiRole(item?.role),
+        content: normalizeAiContent(item?.content)
+      }))
+
+    if (assistantRows.length) {
+      activeMessages.value = [...activeMessages.value, ...assistantRows]
+    } else {
+      appendMessage('assistant', '本次没有返回可展示的回复内容。')
+    }
+  } catch (err) {
+    notifyErrorOnce(err, 'AI 对话请求失败，请稍后再试')
+    appendMessage('assistant', '请求失败了，请检查网络或稍后再试。')
+  } finally {
+    chatSending.value = false
+    scrollChatToBottom()
+  }
 }
 
 const normalizeText = (value) => {
@@ -1021,6 +1421,474 @@ const provinceBarsByCode = (code) => {
   flex-direction: column;
   gap: 12px;
   overflow: hidden;
+}
+
+.monitor-workspace {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.monitor-main {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.ai-panel {
+  min-height: 0;
+  border-radius: 22px;
+  border: 1px solid #d8dce1;
+  background:
+    radial-gradient(circle at 92% 8%, rgba(15, 23, 42, 0.16), transparent 40%),
+    linear-gradient(165deg, #fafafa 0%, #edf1f5 52%, #f7f9fc 100%);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 12px 42px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ai-workspace {
+  min-height: 0;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.ai-session-pane {
+  min-height: 0;
+  border: 1px solid #d7dee8;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-session-head {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e5eaf1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #475569;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.mini-refresh {
+  border: 1px solid #cfd7e3;
+  background: #fff;
+  color: #334155;
+  border-radius: 8px;
+  height: 26px;
+  padding: 0 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mini-refresh:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ai-session-empty {
+  min-height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 0.8rem;
+  padding: 10px;
+  text-align: center;
+}
+
+.ai-session-list {
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+}
+
+.ai-session-item {
+  border: 1px solid #d4dce8;
+  border-radius: 10px;
+  background: #fff;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.ai-session-item.active {
+  border-color: #111827;
+  box-shadow: inset 0 0 0 1px rgba(17, 24, 39, 0.15);
+}
+
+.session-main {
+  min-width: 0;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.session-id {
+  color: #0f172a;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-title-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #0f172a;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 6px 8px;
+  outline: none;
+}
+
+.session-type {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 1px 8px;
+  background: #eef2f7;
+  color: #475569;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.session-rename,
+.session-delete {
+  border: none;
+  border-left: 1px solid #e2e8f0;
+  background: transparent;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0 8px;
+  cursor: pointer;
+}
+
+.session-rename {
+  color: #64748b;
+}
+
+.session-rename:hover {
+  color: #0f172a;
+}
+
+.session-delete {
+  color: #94a3b8;
+}
+
+.session-delete:hover {
+  color: #b91c1c;
+}
+
+.ai-chat-pane {
+  min-height: 0;
+  border: 1px solid #d7dee8;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+}
+
+.ai-type-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.type-btn {
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid #cfd7e3;
+  background: #fff;
+  color: #334155;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 0 12px;
+  cursor: pointer;
+  text-transform: lowercase;
+}
+
+.type-btn.active {
+  background: #111827;
+  border-color: #111827;
+  color: #f8fafc;
+}
+
+.session-meta {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: #64748b;
+  max-width: 52%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-empty-hint {
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  text-align: center;
+  font-size: 0.82rem;
+}
+
+.chat-create-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 24px;
+  text-align: center;
+}
+
+.chat-create-copy h4 {
+  margin: 0 0 8px;
+  color: #0f172a;
+  font-size: 1.1rem;
+}
+
+.chat-create-copy p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.chat-create-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.create-type-btn {
+  min-width: 136px;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid #111827;
+  background: #111827;
+  color: #f8fafc;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.create-type-btn:hover {
+  background: #1f2937;
+}
+
+.ai-popup {
+  position: fixed;
+  right: 28px;
+  top: 88px;
+  width: min(820px, calc(100vw - 24px));
+  height: min(760px, calc(100vh - 108px));
+  z-index: 1200;
+}
+
+.ai-fab {
+  position: fixed;
+  right: 28px;
+  top: 88px;
+  z-index: 1201;
+  min-width: 110px;
+  height: 42px;
+  border-radius: 999px;
+  border: 1px solid #111827;
+  background: #111827;
+  color: #f8fafc;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.28);
+}
+
+.ai-fab.active {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ai-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-close-btn {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid #94a3b8;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ai-close-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ai-pop-enter-active,
+.ai-pop-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.ai-pop-enter-from,
+.ai-pop-leave-to {
+  opacity: 0;
+  transform: translateY(12px) scale(0.98);
+}
+
+.ai-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ai-panel-header h3 {
+  margin: 0;
+  font-size: 0.94rem;
+  color: #0f172a;
+  letter-spacing: 0.02em;
+}
+
+.ai-panel-header p {
+  margin: 2px 0 0;
+  color: #6b7280;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.ai-chat-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chat-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chat-row.user {
+  align-items: flex-end;
+}
+
+.chat-role {
+  font-size: 0.7rem;
+  color: #6b7280;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.chat-bubble {
+  width: fit-content;
+  max-width: 100%;
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: 1px solid #dbe2ea;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.chat-row.user .chat-bubble {
+  border-color: #111827;
+  background: #111827;
+  color: #f8fafc;
+}
+
+.chat-row.pending .chat-bubble {
+  color: #64748b;
+  border-style: dashed;
+}
+
+.ai-input-wrap {
+  display: grid;
+  gap: 8px;
+}
+
+.ai-input {
+  width: 100%;
+  min-height: 92px;
+  resize: vertical;
+  border-radius: 12px;
+  border: 1px solid #cdd5df;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 10px 12px;
+  box-sizing: border-box;
+  outline: none;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #0f172a;
+}
+
+.ai-input:focus {
+  border-color: #111827;
+  box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.08);
+}
+
+.ai-send-btn {
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid #111827;
+  background: #111827;
+  color: #f8fafc;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ai-send-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .center-block {
@@ -1983,6 +2851,30 @@ const provinceBarsByCode = (code) => {
     padding-top: 88px;
   }
 
+  .ai-popup,
+  .ai-fab {
+    right: 12px;
+    top: 82px;
+  }
+
+  .ai-popup {
+    width: calc(100vw - 24px);
+    height: min(620px, calc(100vh - 96px));
+  }
+
+  .ai-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-session-pane {
+    max-height: 180px;
+  }
+
+  .session-meta {
+    max-width: 100%;
+    margin-left: 0;
+  }
+
   .stats-row {
     grid-template-columns: 1fr 1fr;
   }
@@ -2029,6 +2921,17 @@ const provinceBarsByCode = (code) => {
 
   .filter-inputs {
     width: 100%;
+  }
+
+  .ai-popup {
+    height: min(680px, calc(100vh - 92px));
+  }
+
+  .ai-session-head,
+  .session-id,
+  .chat-bubble,
+  .ai-input {
+    font-size: 0.78rem;
   }
 
   .filter-date,

@@ -19,12 +19,3 @@ export const registerAPI = (data) => {
     data: data
   })
 }
-
-// 创建 link code 接口
-export const createLinkCodeAPI = (data) => {
-  return request({
-    url: API_PATHS.link.createCode,
-    method: 'post',
-    data: data
-  })
-}
