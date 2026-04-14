@@ -438,6 +438,23 @@
                   <span class="session-meta">{{ getSessionTitle(activeChatId) }} · {{ activeSessionType }}</span>
                 </div>
 
+                <div v-if="isPdfSession" class="pdf-upload-row">
+                  <button
+                    class="pdf-upload-btn"
+                    :disabled="pdfUploading || chatSending || !activeChatId"
+                    @click="triggerPdfUpload"
+                  >
+                    {{ pdfUploading ? 'Uploading...' : 'Upload PDF' }}
+                  </button>
+                  <span class="pdf-upload-tip">
+                    {{
+                      isActivePdfUploaded
+                        ? '已上传 1 个 PDF，可直接提问。'
+                        : 'pdf 会话需先上传且仅上传 1 个 PDF。'
+                    }}
+                  </span>
+                </div>
+
                 <div ref="chatScrollRef" class="ai-chat-list">
                   <div v-if="aiDetailLoading" class="chat-empty-hint">Loading history...</div>
                   <template v-else>
@@ -454,6 +471,13 @@
                 </div>
 
                 <footer class="ai-input-wrap">
+                  <input
+                    ref="pdfFileInputRef"
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    class="pdf-file-input"
+                    @change="handlePdfFileChange"
+                  />
                   <textarea
                     v-model.trim="aiPrompt"
                     class="ai-input"
@@ -461,7 +485,11 @@
                     :disabled="chatSending || !activeChatId"
                     @keydown.enter.exact.prevent="submitAiPrompt"
                   ></textarea>
-                  <button class="ai-send-btn" :disabled="!aiPrompt || chatSending || !activeChatId" @click="submitAiPrompt">
+                  <button
+                    class="ai-send-btn"
+                    :disabled="!aiPrompt || chatSending || !activeChatId || (isPdfSession && !isActivePdfUploaded)"
+                    @click="submitAiPrompt"
+                  >
                     {{ chatSending ? 'Sending...' : 'Send' }}
                   </button>
                 </footer>
@@ -492,7 +520,8 @@ import {
   getAiSessionDetailAPI,
   deleteAiSessionAPI,
   sendAiPromptAPI,
-  updateAiSessionTitleAPI
+  updateAiSessionTitleAPI,
+  uploadAiPdfAPI
 } from '../api/ai'
 import { notifyErrorOnce } from '../utils/error-handler'
 import { notifySuccess } from '../utils/notify'
@@ -510,14 +539,17 @@ const isFilterExpanded = ref(true)
 const linkTitleTopN = ref(5)
 const isAiOpen = ref(false)
 const chatScrollRef = ref(null)
+const pdfFileInputRef = ref(null)
 const sessionLoading = ref(false)
 const aiDetailLoading = ref(false)
 const chatSending = ref(false)
+const pdfUploading = ref(false)
 const aiPrompt = ref('')
 const aiSessions = ref([])
 const activeChatId = ref('')
 const selectedCreateType = ref(AI_CHAT_TYPES.chat)
 const activeMessages = ref([])
+const pdfUploadedByChatId = reactive({})
 const chatSeed = ref(1)
 const editingChatId = ref('')
 const editingTitle = ref('')
@@ -661,6 +693,16 @@ const activeSessionType = computed(() => {
   return activeSession.value?.type || selectedCreateType.value
 })
 
+const isPdfSession = computed(() => {
+  return activeSessionType.value === AI_CHAT_TYPES.pdf
+})
+
+const isActivePdfUploaded = computed(() => {
+  const chatId = activeChatId.value
+  if (!chatId) return false
+  return Boolean(pdfUploadedByChatId[chatId])
+})
+
 const loadAiSessions = async () => {
   sessionLoading.value = true
   try {
@@ -673,6 +715,11 @@ const loadAiSessions = async () => {
       activeChatId.value = ''
       activeMessages.value = []
     }
+
+    const sessionIdSet = new Set(sessions.map((item) => item.chatId))
+    Object.keys(pdfUploadedByChatId).forEach((chatId) => {
+      if (!sessionIdSet.has(chatId)) delete pdfUploadedByChatId[chatId]
+    })
   } catch (err) {
     notifyErrorOnce(err, '加载会话列表失败')
   } finally {
@@ -684,6 +731,9 @@ const selectAiSession = async (chatId) => {
   if (!chatId) return
   activeChatId.value = chatId
   selectedCreateType.value = findAiSession(chatId)?.type || AI_CHAT_TYPES.chat
+  if (selectedCreateType.value === AI_CHAT_TYPES.pdf && pdfUploadedByChatId[chatId] === undefined) {
+    pdfUploadedByChatId[chatId] = false
+  }
 
   aiDetailLoading.value = true
   try {
@@ -737,6 +787,7 @@ const removeAiSession = async (chatId) => {
       activeChatId.value = ''
       activeMessages.value = []
     }
+    delete pdfUploadedByChatId[chatId]
   } catch (err) {
     notifyErrorOnce(err, '删除会话失败')
   }
@@ -761,9 +812,50 @@ const toggleAiPanel = () => {
   openAiPanel()
 }
 
+const triggerPdfUpload = () => {
+  if (!activeChatId.value || !isPdfSession.value || pdfUploading.value || chatSending.value) return
+  pdfFileInputRef.value?.click()
+}
+
+const handlePdfFileChange = async (event) => {
+  const fileInput = event?.target
+  const fileList = fileInput?.files
+  const file = fileList && fileList.length ? fileList[0] : null
+
+  if (!file) return
+  if (!activeChatId.value || !isPdfSession.value) return
+
+  const fileName = String(file.name || '').toLowerCase()
+  const isPdf = file.type === 'application/pdf' || fileName.endsWith('.pdf')
+  if (!isPdf) {
+    notifyErrorOnce(new Error('invalid file type'), '仅支持上传 PDF 文件')
+    fileInput.value = ''
+    return
+  }
+
+  pdfUploading.value = true
+  try {
+    await uploadAiPdfAPI({
+      chatId: activeChatId.value,
+      file
+    })
+    pdfUploadedByChatId[activeChatId.value] = true
+    notifySuccess('PDF 上传成功，可以开始对话了')
+  } catch (err) {
+    notifyErrorOnce(err, 'PDF 上传失败，请稍后重试')
+  } finally {
+    pdfUploading.value = false
+    fileInput.value = ''
+  }
+}
+
 const submitAiPrompt = async () => {
   const prompt = String(aiPrompt.value || '').trim()
   if (!prompt || chatSending.value || !activeChatId.value) return
+  if (isPdfSession.value && !isActivePdfUploaded.value) {
+    notifyErrorOnce(new Error('missing pdf'), 'pdf 会话请先上传 1 个 PDF 文件')
+    return
+  }
 
   if (!isAiOpen.value) {
     await openAiPanel()
@@ -1853,6 +1945,39 @@ const provinceBarsByCode = (code) => {
 .ai-input-wrap {
   display: grid;
   gap: 8px;
+}
+
+.pdf-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pdf-upload-btn {
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid #334155;
+  background: #fff;
+  color: #334155;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.pdf-upload-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.pdf-upload-tip {
+  color: #64748b;
+  font-size: 0.74rem;
+}
+
+.pdf-file-input {
+  display: none;
 }
 
 .ai-input {

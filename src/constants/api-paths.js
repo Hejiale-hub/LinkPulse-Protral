@@ -8,6 +8,7 @@ export const API_PATHS = {
     chat: '/ai/chat',
     service: '/ai/service',
     pdf: '/ai/pdf',
+    pdfUpload: '/ai/pdf/upload',
     history: '/ai/history',
     historyDetail: '/ai/history/detail',
     historyDelete: '/ai/history/delete',
