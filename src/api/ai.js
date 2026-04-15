@@ -109,15 +109,31 @@ export const updateAiSessionTitleAPI = async ({ chatId, sessionTitle }) => {
   })
 }
 
-export const sendAiPromptAPI = async ({ type, prompt, chatId }) => {
+export const sendAiPromptAPI = async ({ type, prompt, chatId, files = [] }) => {
   const normalizedType = normalizeType(type)
   const endpoint = AI_ENDPOINT_BY_TYPE[normalizedType] || API_PATHS.ai.chat
 
-  const data = await aiRequest({
-    url: endpoint,
-    method: 'post',
-    params: { prompt, chatId }
-  })
+  let data
+  if (normalizedType === AI_CHAT_TYPES.chat && Array.isArray(files) && files.length) {
+    const formData = new FormData()
+    formData.append('prompt', prompt)
+    formData.append('chatId', chatId)
+    files.forEach((file) => {
+      formData.append('files', file)
+    })
+
+    data = await aiRequest({
+      url: endpoint,
+      method: 'post',
+      data: formData
+    })
+  } else {
+    data = await aiRequest({
+      url: endpoint,
+      method: 'post',
+      params: { prompt, chatId }
+    })
+  }
 
   return parseListResponse(data)
 }

@@ -455,6 +455,34 @@
                   </span>
                 </div>
 
+                <div v-if="isChatSession" class="chat-image-row">
+                  <button
+                    class="chat-image-btn"
+                    :disabled="chatSending || !activeChatId"
+                    @click="triggerChatImageUpload"
+                  >
+                    Upload Images
+                  </button>
+                  <span class="chat-image-tip">
+                    {{ selectedChatImages.length ? `已选择 ${selectedChatImages.length} 张图片` : '可选：上传图片辅助 chat 对话' }}
+                  </span>
+                  <button
+                    v-if="selectedChatImages.length"
+                    class="chat-image-clear-btn"
+                    :disabled="chatSending"
+                    @click="clearSelectedChatImages"
+                  >
+                    Clear
+                  </button>
+                </div>
+
+                <div v-if="isChatSession && selectedChatImages.length" class="chat-image-list">
+                  <span v-for="(file, idx) in selectedChatImages" :key="`${file.name}-${file.size}-${idx}`" class="chat-image-item">
+                    <span class="chat-image-name" :title="file.name">{{ truncate(file.name, 22) }}</span>
+                    <button class="chat-image-remove" :disabled="chatSending" @click="removeSelectedChatImage(idx)">x</button>
+                  </span>
+                </div>
+
                 <div ref="chatScrollRef" class="ai-chat-list">
                   <div v-if="aiDetailLoading" class="chat-empty-hint">Loading history...</div>
                   <template v-else>
@@ -477,6 +505,14 @@
                     accept=".pdf,application/pdf"
                     class="pdf-file-input"
                     @change="handlePdfFileChange"
+                  />
+                  <input
+                    ref="chatImageInputRef"
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    class="chat-image-file-input"
+                    @change="handleChatImageFileChange"
                   />
                   <textarea
                     v-model.trim="aiPrompt"
@@ -540,6 +576,7 @@ const linkTitleTopN = ref(5)
 const isAiOpen = ref(false)
 const chatScrollRef = ref(null)
 const pdfFileInputRef = ref(null)
+const chatImageInputRef = ref(null)
 const sessionLoading = ref(false)
 const aiDetailLoading = ref(false)
 const chatSending = ref(false)
@@ -550,10 +587,14 @@ const activeChatId = ref('')
 const selectedCreateType = ref(AI_CHAT_TYPES.chat)
 const activeMessages = ref([])
 const pdfUploadedByChatId = reactive({})
+const selectedChatImages = ref([])
 const chatSeed = ref(1)
 const editingChatId = ref('')
 const editingTitle = ref('')
 const titleSavingChatId = ref('')
+
+const CHAT_IMAGE_MAX_COUNT = 3
+const CHAT_IMAGE_MAX_SIZE_BYTES = 1024 * 1024
 
 const pagination = reactive({
   pageNo: 1,
@@ -693,6 +734,10 @@ const activeSessionType = computed(() => {
   return activeSession.value?.type || selectedCreateType.value
 })
 
+const isChatSession = computed(() => {
+  return activeSessionType.value === AI_CHAT_TYPES.chat
+})
+
 const isPdfSession = computed(() => {
   return activeSessionType.value === AI_CHAT_TYPES.pdf
 })
@@ -729,6 +774,7 @@ const loadAiSessions = async () => {
 
 const selectAiSession = async (chatId) => {
   if (!chatId) return
+  clearSelectedChatImages()
   activeChatId.value = chatId
   selectedCreateType.value = findAiSession(chatId)?.type || AI_CHAT_TYPES.chat
   if (selectedCreateType.value === AI_CHAT_TYPES.pdf && pdfUploadedByChatId[chatId] === undefined) {
@@ -754,6 +800,7 @@ const selectAiSession = async (chatId) => {
 
 const createAiSession = async (type) => {
   const normalizedType = Object.values(AI_CHAT_TYPES).includes(type) ? type : AI_CHAT_TYPES.chat
+  clearSelectedChatImages()
   selectedCreateType.value = normalizedType
 
   try {
@@ -786,6 +833,7 @@ const removeAiSession = async (chatId) => {
     if (activeChatId.value === chatId) {
       activeChatId.value = ''
       activeMessages.value = []
+      clearSelectedChatImages()
     }
     delete pdfUploadedByChatId[chatId]
   } catch (err) {
@@ -801,6 +849,7 @@ const openAiPanel = async () => {
 
 const closeAiPanel = () => {
   if (chatSending.value) return
+  clearSelectedChatImages()
   isAiOpen.value = false
 }
 
@@ -815,6 +864,82 @@ const toggleAiPanel = () => {
 const triggerPdfUpload = () => {
   if (!activeChatId.value || !isPdfSession.value || pdfUploading.value || chatSending.value) return
   pdfFileInputRef.value?.click()
+}
+
+const triggerChatImageUpload = () => {
+  if (!activeChatId.value || !isChatSession.value || chatSending.value) return
+  chatImageInputRef.value?.click()
+}
+
+const clearSelectedChatImages = () => {
+  selectedChatImages.value = []
+  if (chatImageInputRef.value) {
+    chatImageInputRef.value.value = ''
+  }
+}
+
+const removeSelectedChatImage = (index) => {
+  if (index < 0 || index >= selectedChatImages.value.length) return
+  selectedChatImages.value = selectedChatImages.value.filter((_, idx) => idx !== index)
+  if (!selectedChatImages.value.length && chatImageInputRef.value) {
+    chatImageInputRef.value.value = ''
+  }
+}
+
+const handleChatImageFileChange = (event) => {
+  const fileInput = event?.target
+  const fileList = fileInput?.files
+  if (!fileList || !fileList.length) return
+  if (!activeChatId.value || !isChatSession.value) return
+
+  const current = selectedChatImages.value
+  const currentKeySet = new Set(current.map((file) => `${file.name}-${file.size}-${file.lastModified}`))
+
+  const nextFiles = []
+  let hasInvalidType = false
+  let hasTooLargeFile = false
+  for (const file of Array.from(fileList)) {
+    const isImage = String(file.type || '').startsWith('image/')
+    if (!isImage) {
+      hasInvalidType = true
+      continue
+    }
+    if (file.size > CHAT_IMAGE_MAX_SIZE_BYTES) {
+      hasTooLargeFile = true
+      continue
+    }
+    const fileKey = `${file.name}-${file.size}-${file.lastModified}`
+    if (!currentKeySet.has(fileKey)) {
+      currentKeySet.add(fileKey)
+      nextFiles.push(file)
+    }
+  }
+
+  const mergedFiles = [...current, ...nextFiles]
+  if (mergedFiles.length > CHAT_IMAGE_MAX_COUNT) {
+    notifyErrorOnce(new Error('too many images'), `chat 对话最多上传 ${CHAT_IMAGE_MAX_COUNT} 张图片`)
+    fileInput.value = ''
+    return
+  }
+
+  if (!nextFiles.length) {
+    if (hasTooLargeFile) {
+      notifyErrorOnce(new Error('image too large'), `单张图片不能超过 ${Math.floor(CHAT_IMAGE_MAX_SIZE_BYTES / 1024 / 1024)}MB`)
+    } else {
+      notifyErrorOnce(new Error('invalid image file'), '请选择图片文件上传')
+    }
+    fileInput.value = ''
+    return
+  }
+
+  if (hasTooLargeFile) {
+    notifyErrorOnce(new Error('image too large'), `部分图片超过 ${Math.floor(CHAT_IMAGE_MAX_SIZE_BYTES / 1024 / 1024)}MB，已自动忽略`)
+  } else if (hasInvalidType) {
+    notifyErrorOnce(new Error('invalid image file'), '部分文件不是图片，已自动忽略')
+  }
+
+  selectedChatImages.value = mergedFiles
+  fileInput.value = ''
 }
 
 const handlePdfFileChange = async (event) => {
@@ -857,12 +982,17 @@ const submitAiPrompt = async () => {
     return
   }
 
+  const imageFiles = isChatSession.value ? [...selectedChatImages.value] : []
+  const imageCount = imageFiles.length
+  const userPrompt = imageCount ? `${prompt}\n[已附带图片 ${imageCount} 张]` : prompt
+
   if (!isAiOpen.value) {
     await openAiPanel()
   }
 
-  appendMessage('user', prompt)
+  appendMessage('user', userPrompt)
   aiPrompt.value = ''
+  clearSelectedChatImages()
   chatSending.value = true
   scrollChatToBottom()
 
@@ -870,7 +1000,8 @@ const submitAiPrompt = async () => {
     const payload = await sendAiPromptAPI({
       type: activeSessionType.value,
       prompt,
-      chatId: activeChatId.value
+      chatId: activeChatId.value,
+      files: imageFiles
     })
 
     const assistantRows = payload
@@ -1977,6 +2108,89 @@ const provinceBarsByCode = (code) => {
 }
 
 .pdf-file-input {
+  display: none;
+}
+
+.chat-image-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chat-image-btn,
+.chat-image-clear-btn {
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid #334155;
+  background: #fff;
+  color: #334155;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.chat-image-clear-btn {
+  border-color: #cbd5e1;
+  color: #64748b;
+}
+
+.chat-image-btn:disabled,
+.chat-image-clear-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.chat-image-tip {
+  color: #64748b;
+  font-size: 0.74rem;
+}
+
+.chat-image-list {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.chat-image-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid #dbe3ef;
+  background: #f8fafc;
+}
+
+.chat-image-name {
+  max-width: 160px;
+  font-size: 0.74rem;
+  color: #334155;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-image-remove {
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 0.72rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chat-image-remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chat-image-file-input {
   display: none;
 }
 
