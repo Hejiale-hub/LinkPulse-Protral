@@ -73,17 +73,23 @@ const handleLogout = () => {
   font-size: 14px;
   padding: 7px 18px;
   border-radius: 50px;
-  transition: background-color 0.2s, color 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .nav-tab:hover {
   color: #0f172a;
   background-color: #f1f5f9;
+  transform: scale(1.02);
+}
+
+.nav-tab:active {
+  transform: scale(0.96);
 }
 
 .nav-tab.active {
   background-color: #0f172a;
   color: #ffffff;
+  transform: none;
 }
 
 .nav-logo {
@@ -125,12 +131,20 @@ const handleLogout = () => {
   color: #000000;
   font-weight: 600;
   font-size: 15px;
-  transition: opacity 0.3s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 50px;
 }
 
 .nav-auth .btn-login:hover {
-  opacity: 0.5;
+  color: #334155;
+  background-color: #f8fafc;
+  transform: scale(1.02);
+}
+
+.nav-auth .btn-login:active {
+  transform: scale(0.96);
 }
 
 .nav-auth .btn-register {
@@ -143,12 +157,19 @@ const handleLogout = () => {
   font-size: 15px;
   border: none;
   cursor: pointer;
-  transition: transform 0.3s, background-color 0.3s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .nav-auth .btn-register:hover {
-  background-color: #333333;
+  background-color: #1e293b;
   transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.nav-auth .btn-register:active {
+  transform: translateY(0) scale(0.96);
+  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
 }
 
 .user-entry {

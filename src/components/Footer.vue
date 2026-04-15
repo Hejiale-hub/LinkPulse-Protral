@@ -99,13 +99,18 @@
   margin-bottom: 15px;
   font-size: 1rem;
   font-weight: 500;
-  transition: color 0.3s, transform 0.3s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-block;
 }
 
 /* 鼠标悬浮特效：文字变纯白并轻微右移 */
 .link-column a:hover {
   color: #ffffff;
-  transform: translateX(5px);
+  transform: translateX(6px);
+}
+
+.link-column a:active {
+  transform: translateX(4px) scale(0.98);
 }
 
 /* 底部版权区域 */
@@ -132,10 +137,16 @@
   color: #a1a1aa;
   text-decoration: none;
   font-weight: 600;
-  transition: color 0.3s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-block;
 }
 
 .social-links a:hover {
   color: #ffffff;
+  transform: translateY(-2px);
+}
+
+.social-links a:active {
+  transform: translateY(0) scale(0.95);
 }
 </style>

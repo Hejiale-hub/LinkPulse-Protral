@@ -361,7 +361,7 @@
           {{ isAiOpen ? 'Hide AI' : 'AI Chat' }}
         </button>
 
-        <transition name="ai-pop">
+        <transition name="ai-slide">
         <aside v-if="isAiOpen" class="ai-panel ai-popup">
           <header class="ai-panel-header">
             <div>
@@ -515,6 +515,7 @@
                     @change="handleChatImageFileChange"
                   />
                   <textarea
+                    ref="aiInputRef"
                     v-model.trim="aiPrompt"
                     class="ai-input"
                     placeholder="请输入问题，Enter 发送"
@@ -577,6 +578,7 @@ const isAiOpen = ref(false)
 const chatScrollRef = ref(null)
 const pdfFileInputRef = ref(null)
 const chatImageInputRef = ref(null)
+const aiInputRef = ref(null)
 const sessionLoading = ref(false)
 const aiDetailLoading = ref(false)
 const chatSending = ref(false)
@@ -598,7 +600,7 @@ const CHAT_IMAGE_MAX_SIZE_BYTES = 1024 * 1024
 
 const pagination = reactive({
   pageNo: 1,
-  pageSize: 10,
+  pageSize: 30,
   total: 0
 })
 
@@ -714,6 +716,11 @@ const scrollChatToBottom = async () => {
   await nextTick()
   if (!chatScrollRef.value) return
   chatScrollRef.value.scrollTop = chatScrollRef.value.scrollHeight
+}
+
+const focusAiInput = async () => {
+  await nextTick()
+  aiInputRef.value?.focus()
 }
 
 const appendMessage = (role, content) => {
@@ -1023,6 +1030,7 @@ const submitAiPrompt = async () => {
   } finally {
     chatSending.value = false
     scrollChatToBottom()
+    focusAiInput()
   }
 }
 
@@ -1650,9 +1658,12 @@ const provinceBarsByCode = (code) => {
   flex: 1;
   min-height: 0;
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .monitor-main {
+  flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -1681,7 +1692,7 @@ const provinceBarsByCode = (code) => {
   min-height: 0;
   flex: 1;
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
+  grid-template-columns: 240px minmax(0, 1fr);
   gap: 10px;
 }
 
@@ -1935,29 +1946,43 @@ const provinceBarsByCode = (code) => {
 
 .ai-popup {
   position: fixed;
-  right: 28px;
-  top: 88px;
-  width: min(820px, calc(100vw - 24px));
-  height: min(760px, calc(100vh - 108px));
-  z-index: 1200;
+  right: 24px;
+  top: 104px;
+  width: min(800px, 35vw);
+  height: calc(100vh - 206px);
+  z-index: 1100;
+  border-radius: 24px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 20px 40px -8px rgba(15, 23, 42, 0.15), 0 8px 16px -6px rgba(15, 23, 42, 0.1);
 }
 
 .ai-fab {
   position: fixed;
   right: 28px;
-  top: 88px;
-  z-index: 1201;
+  bottom: 40px;
+  top: auto;
+  z-index: 900;
   min-width: 110px;
-  height: 42px;
+  height: 46px;
   border-radius: 999px;
-  border: 1px solid #111827;
-  background: #111827;
-  color: #f8fafc;
-  font-size: 0.8rem;
-  font-weight: 800;
+  border: none;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.28);
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.4), 0 8px 10px -6px rgba(15, 23, 42, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ai-fab:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 35px -5px rgba(15, 23, 42, 0.4), 0 8px 10px -6px rgba(15, 23, 42, 0.2);
+}
+
+.ai-fab:active {
+  transform: translateY(0) scale(0.96);
 }
 
 .ai-fab.active {
@@ -1988,15 +2013,15 @@ const provinceBarsByCode = (code) => {
   cursor: not-allowed;
 }
 
-.ai-pop-enter-active,
-.ai-pop-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+.ai-slide-enter-active,
+.ai-slide-leave-active {
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.ai-pop-enter-from,
-.ai-pop-leave-to {
+.ai-slide-enter-from,
+.ai-slide-leave-to {
+  transform: translateX(120%);
   opacity: 0;
-  transform: translateY(12px) scale(0.98);
 }
 
 .ai-panel-header {
@@ -2285,6 +2310,13 @@ const provinceBarsByCode = (code) => {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px -8px rgba(15, 23, 42, 0.08);
+  border-color: #cbd5e1;
 }
 
 .stat-label {
@@ -2427,12 +2459,27 @@ const provinceBarsByCode = (code) => {
   font-weight: 600;
   padding: 0 12px;
   cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.filter-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.filter-btn:active {
+  transform: scale(0.96);
 }
 
 .filter-btn.primary {
   background: #0f172a;
   border-color: #0f172a;
   color: #fff;
+}
+
+.filter-btn.primary:hover {
+  background: #1e293b;
+  border-color: #1e293b;
 }
 
 .charts-row {
@@ -2453,6 +2500,16 @@ const provinceBarsByCode = (code) => {
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
   position: relative;
   overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chart-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 32px rgba(15, 23, 42, 0.08),
+    0 24px 64px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
 .chart-card::before {
@@ -3190,15 +3247,20 @@ const provinceBarsByCode = (code) => {
     padding-top: 88px;
   }
 
-  .ai-popup,
   .ai-fab {
-    right: 12px;
-    top: 82px;
+    right: 16px;
+    bottom: 24px;
+    top: auto;
   }
 
   .ai-popup {
-    width: calc(100vw - 24px);
-    height: min(620px, calc(100vh - 96px));
+    right: 0;
+    top: 84px;
+    width: 100vw;
+    height: calc(100vh - 84px);
+    border-radius: 24px 24px 0 0;
+    border: none;
+    border-top: 1px solid #e2e8f0;
   }
 
   .ai-workspace {
@@ -3263,7 +3325,7 @@ const provinceBarsByCode = (code) => {
   }
 
   .ai-popup {
-    height: min(680px, calc(100vh - 92px));
+    height: calc(100vh - 84px);
   }
 
   .ai-session-head,
