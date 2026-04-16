@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import LoginView from '../views/LoginView.vue'
 import MonitorView from '../views/MonitorView.vue'
+import HelpCenterView from '../views/HelpCenterView.vue'
+import PrivacyPolicyView from '../views/PrivacyPolicyView.vue'
 import { STORAGE_KEYS } from '../constants/storage-keys'
 
 const routes = [
@@ -19,6 +21,16 @@ const routes = [
     path: '/monitor',
     name: 'monitor',
     component: MonitorView
+  },
+  {
+    path: '/help',
+    name: 'help',
+    component: HelpCenterView
+  },
+  {
+    path: '/privacy',
+    name: 'privacy',
+    component: PrivacyPolicyView
   }
 ]
 

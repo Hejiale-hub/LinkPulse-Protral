@@ -15,18 +15,16 @@
 
         <div class="link-column">
           <h3>支持</h3>
-          <a href="#">帮助中心</a>
-          <a href="#">隐私政策</a>
+          <router-link to="/help">帮助中心</router-link>
+          <router-link to="/privacy">隐私政策</router-link>
         </div>
       </div>
     </div>
 
-    <div class="footer-bottom">
+      <div class="footer-bottom">
       <p>&copy; 2026 LinkPulse. All rights reserved.</p>
       <div class="social-links">
-        <a href="#">Twitter</a>
-        <a href="#">Instagram</a>
-        <a href="#">LinkedIn</a>
+        <a href="https://github.com/Hejiale-hub/LinkPulse-backend.git" target="_blank" rel="noopener noreferrer">GitHub</a>
       </div>
     </div>
   </footer>

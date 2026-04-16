@@ -215,11 +215,21 @@
                       </td>
                       <td class="col-idx muted">{{ rowIndex(idx) }}</td>
                       <td class="cell-title">{{ item.linkTitle }}</td>
-                      <td class="cell-code"><code class="code-badge">{{ item.linkCode }}</code></td>
+                      <td class="cell-code">
+                        <a
+                          :href="item.linkCode.startsWith('http') ? item.linkCode : `http://${item.linkCode}`"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="code-badge link-badge"
+                          :title="item.linkCode"
+                        >
+                          {{ item.linkCode }}
+                        </a>
+                      </td>
                       <td class="cell-url">
                         <a
                           v-if="item.originalUrl !== '-'"
-                          :href="item.originalUrl"
+                          :href="item.originalUrl.startsWith('http') ? item.originalUrl : `http://${item.originalUrl}`"
                           target="_blank"
                           rel="noopener noreferrer"
                           :title="item.originalUrl"
@@ -2886,6 +2896,9 @@ const provinceBarsByCode = (code) => {
 
 .cell-code {
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .cell-url a {
@@ -2912,6 +2925,22 @@ const provinceBarsByCode = (code) => {
   font-size: 0.82rem;
   color: #0f172a;
   white-space: nowrap;
+  display: inline-block;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+.link-badge {
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.link-badge:hover {
+  background: #e2e8f0;
+  color: #2563eb;
 }
 
 .cell-url {
