@@ -78,8 +78,14 @@
               placeholder="Search Province / City"
               @keydown.enter="applyFilters"
             />
-            <button class="filter-btn primary" @click="applyFilters">Search</button>
-            <button class="filter-btn" @click="resetFilters">Reset</button>
+            <button class="filter-btn primary" type="button" @click="applyFilters">
+              <ColoredIconfont name="icon-sousuo_huaban1" size="md" />
+              <span>Search</span>
+            </button>
+            <button class="filter-btn" type="button" @click="resetFilters">
+              <ColoredIconfont name="icon-zhongzhi" size="md" />
+              <span>Reset</span>
+            </button>
           </div>
         </div>
       </section>
@@ -148,6 +154,7 @@
           <h3>Link Monitor List</h3>
           <div class="panel-actions">
             <button class="danger-btn" :disabled="!selectedCount || loading" @click="handleBatchDelete">
+            <i class="iconfont icon-shanchu"></i>
               Delete Selected ({{ selectedCount }})
             </button>
             <div class="panel-meta">
@@ -367,8 +374,10 @@
 
         </div>
 
-        <button class="ai-fab" :class="{ active: isAiOpen }" @click="toggleAiPanel">
-          {{ isAiOpen ? 'Hide AI' : 'AI Chat' }}
+        <button class="ai-fab" type="button" :class="{ active: isAiOpen }" @click="toggleAiPanel">
+          <!-- <ColoredIconfont name="icon-Ai" size="md" /> -->
+          <i class="iconfont icon-AI"></i>
+          <span class="ai-fab-label">{{ isAiOpen ? 'Hide AI' : 'AI Chat' }}</span>
         </button>
 
         <transition name="ai-slide">
@@ -572,6 +581,7 @@ import {
 } from '../api/ai'
 import { notifyErrorOnce } from '../utils/error-handler'
 import { notifySuccess } from '../utils/notify'
+import ColoredIconfont from '../components/ColoredIconfont.vue'
 
 const { isLoggedIn } = useAuth()
 
@@ -1974,19 +1984,29 @@ const provinceBarsByCode = (code) => {
   z-index: 900;
   min-width: 110px;
   height: 46px;
+  padding: 0 14px 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   border-radius: 999px;
   border: none;
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-  color: #ffffff;
+  color: #ba5aab;
   font-size: 0.85rem;
-  font-weight: 700;
+  font-weight: 900;
   letter-spacing: 0.02em;
   cursor: pointer;
   box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.4), 0 8px 10px -6px rgba(15, 23, 42, 0.2);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.ai-fab-label {
+  line-height: 1;
+}
+
 .ai-fab:hover {
+  min-width: 300px;
   transform: translateY(-3px);
   box-shadow: 0 20px 35px -5px rgba(15, 23, 42, 0.4), 0 8px 10px -6px rgba(15, 23, 42, 0.2);
 }
@@ -2310,6 +2330,9 @@ const provinceBarsByCode = (code) => {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
+  /* Room for hover translateY so borders/shadow are not clipped by .monitor-main overflow:hidden */
+  padding-top: 8px;
+  margin-top: -8px;
 }
 
 .stat-card {
@@ -2461,13 +2484,18 @@ const provinceBarsByCode = (code) => {
 
 .filter-btn {
   height: 34px;
+  min-width: 130px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #fff;
   color: #334155;
   font-size: 0.82rem;
   font-weight: 600;
-  padding: 0 12px;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }

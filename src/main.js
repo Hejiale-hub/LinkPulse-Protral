@@ -1,6 +1,8 @@
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router' // 引入我们之前写的路由配置
+import './assets/iconfont/iconfont.css'
+import './assets/iconfont/iconfont.js'
 
 const app = createApp(App)
 

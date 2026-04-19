@@ -1,0 +1,72 @@
+{
+  "id": "",
+  "name": "",
+  "font_family": "iconfont",
+  "css_prefix_text": "icon-",
+  "description": "",
+  "glyphs": [
+    {
+      "icon_id": "3740475",
+      "name": "Ai",
+      "font_class": "Ai",
+      "unicode": "e7bd",
+      "unicode_decimal": 59325
+    },
+    {
+      "icon_id": "3824018",
+      "name": "用户",
+      "font_class": "yonghu",
+      "unicode": "e613",
+      "unicode_decimal": 58899
+    },
+    {
+      "icon_id": "7057680",
+      "name": "搜索",
+      "font_class": "icon-sousuo",
+      "unicode": "e688",
+      "unicode_decimal": 59016
+    },
+    {
+      "icon_id": "7333057",
+      "name": "重置",
+      "font_class": "zhongzhi",
+      "unicode": "e6a3",
+      "unicode_decimal": 59043
+    },
+    {
+      "icon_id": "7761519",
+      "name": "删 除 ",
+      "font_class": "shanchu",
+      "unicode": "e612",
+      "unicode_decimal": 58898
+    },
+    {
+      "icon_id": "11222364",
+      "name": "用户",
+      "font_class": "yonghu1",
+      "unicode": "e75c",
+      "unicode_decimal": 59228
+    },
+    {
+      "icon_id": "19689765",
+      "name": "搜 索",
+      "font_class": "sousuo_huaban1",
+      "unicode": "e60d",
+      "unicode_decimal": 58893
+    },
+    {
+      "icon_id": "38105510",
+      "name": "AI",
+      "font_class": "AI",
+      "unicode": "e6a7",
+      "unicode_decimal": 59047
+    },
+    {
+      "icon_id": "38463883",
+      "name": "AI",
+      "font_class": "AI1",
+      "unicode": "e603",
+      "unicode_decimal": 58883
+    }
+  ]
+}

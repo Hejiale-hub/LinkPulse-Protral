@@ -183,7 +183,7 @@ const handlePrimaryAction = async () => {
   font-size: 1rem;
   border: none;
   cursor: pointer;
-  transition: opacity 0.25s;
+  transition: all 0.27s;
 }
 
 .btn-primary:disabled {
@@ -192,7 +192,9 @@ const handlePrimaryAction = async () => {
 }
 
 .btn-primary:hover {
-  opacity: 0.75;
+  transform: translateY(-2px);
+  /* 四周阴影 */
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
 }
 
 .link-code-panel {
