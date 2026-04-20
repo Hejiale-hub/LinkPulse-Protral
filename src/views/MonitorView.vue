@@ -2330,9 +2330,8 @@ const provinceBarsByCode = (code) => {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
-  /* Room for hover translateY so borders/shadow are not clipped by .monitor-main overflow:hidden */
+  /* Reserve space above the row so hover translateY(-4px) stays inside ancestors with overflow:hidden */
   padding-top: 8px;
-  margin-top: -8px;
 }
 
 .stat-card {
