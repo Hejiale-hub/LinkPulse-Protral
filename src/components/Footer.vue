@@ -24,7 +24,7 @@
       <div class="footer-bottom">
       <p>&copy; 2026 LinkPulse. All rights reserved.</p>
       <div class="social-links">
-        <a href="https://github.com/Hejiale-hub/LinkPulse-backend.git" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a href="https://github.com/Hejiale-hub" target="_blank" rel="noopener noreferrer">GitHub</a>
       </div>
     </div>
   </footer>
