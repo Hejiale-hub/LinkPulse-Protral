@@ -482,7 +482,8 @@ const handleSubmit = async () => {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
+  padding-right: 40px;
   background: #ffffff;
   overflow: hidden;
 }
@@ -514,8 +515,8 @@ const handleSubmit = async () => {
 .right-panel {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 100px 20px 40px;
+  justify-content: flex-start;
+  padding: 100px 20px 40px 60px;
 }
 
 /* ==================== Characters ==================== */
