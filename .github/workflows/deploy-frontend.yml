@@ -8,10 +8,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '24' # 你的前端node版本
           
@@ -21,7 +21,7 @@ jobs:
           npm run build # 打包出 dist 目录
           
       - name: Setup Aliyun OSS CLI
-        uses: manyuanrong/setup-ossutil@v2.0
+        uses: aliyun/ossutil-action@v1.0.0 
         with:
           # 替换为你的 OSS 所在地域 Endpoint，例如 oss-cn-hangzhou.aliyuncs.com
           endpoint: oss-cn-beijing.aliyuncs.com
