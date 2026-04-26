@@ -8,28 +8,39 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      # 1. 拉取代码 (已升级到 v4，解决 Node 20 警告)
       - uses: actions/checkout@v4
       
+      # 2. 设置 Node.js 环境 (已升级到 v4)
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24' # 你的前端node版本
+          node-version: '24' # 你的前端 node 版本
           
+      # 3. 编译打包前端代码
       - name: Build Frontend
         run: |
           npm install
           npm run build # 打包出 dist 目录
           
-      - name: Setup Aliyun OSS CLI
-        uses: aliyun/ossutil-action@v1.0.0 
-        with:
-          # 替换为你的 OSS 所在地域 Endpoint，例如 oss-cn-hangzhou.aliyuncs.com
-          endpoint: oss-cn-beijing.aliyuncs.com
-          # 记得在 GitHub 前端仓库的 Secrets 中配置这两个变量
-          access-key-id: ${{ secrets.ALIOSS_ACCESS_KEY_ID }}
-          access-key-secret: ${{ secrets.ALIOSS_ACCESS_KEY_SECRET }}
+      # 4. 【核心修改】手动下载并配置阿里云官方的 ossutil 工具
+      # 这种方式不依赖任何第三方 Action，彻底告别 Node 版本过期的警告
+      - name: Install and Configure Aliyun OSS CLI
+        run: |
+          # 下载 64 位 Linux 版的 ossutil
+          wget https://gosspublic.alicdn.com/ossutil/1.7.14/ossutil64
+          # 赋予执行权限
+          chmod 755 ossutil64
           
+          # 配置 ossutil 的凭证信息
+          # -e: Endpoint (你的北京节点)
+          # -i: AccessKey ID
+          # -k: AccessKey Secret
+          # -L CH: 设置语言为中文
+          ./ossutil64 config -e oss-cn-beijing.aliyuncs.com -i ${{ secrets.ALIOSS_ACCESS_KEY_ID }} -k ${{ secrets.ALIOSS_ACCESS_KEY_SECRET }} -L CH
+          
+      # 5. 上传到 OSS
       - name: Upload to OSS
-        # 将 dist 目录下的所有文件强制覆盖上传到 Bucket 根目录
-        # 记得把 <your-bucket-name> 换成你真实的 bucket 名字
-        run: ossutil cp -rf dist/ oss://<linkcode>/
+        # 使用配置好的 ossutil64 将 dist 目录下的所有文件强制覆盖上传到 linkcode bucket
+        run: |
+          ./ossutil64 cp -rf dist/ oss://linkcode/
