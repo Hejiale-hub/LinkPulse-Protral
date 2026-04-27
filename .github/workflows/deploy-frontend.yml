@@ -38,6 +38,6 @@ jobs:
           password: ${{ secrets.SERVER_PASSWORD }}
           script: |
             cd /root/deploy
-            # 注意：这里指定只重启前端的容器（假设在 docker-compose 中服务名叫 frontend-app）
+            # 注意：这里指定只重启前端的容器（假设在 docker-compose 中服务名叫 frontend）
             docker-compose up -d --build frontend
             docker image prune -f

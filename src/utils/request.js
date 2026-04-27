@@ -1,14 +1,24 @@
 // src/utils/request.js
 import axios from 'axios'
+import JSONBig from 'json-bigint'
 import { HTTP_CONFIG, API_SUCCESS_CODES } from '../config/http'
 import { STORAGE_KEYS } from '../constants/storage-keys'
 import { notifyError } from './notify'
 import { createHandledError, extractServerMessage } from './error-handler'
 import { clearAuth } from '../composables/useAuth'
 
+const JSONBigStr = JSONBig({ storeAsString: true })
+
 const request = axios.create({
   baseURL: HTTP_CONFIG.baseURL,
-  timeout: HTTP_CONFIG.timeout
+  timeout: HTTP_CONFIG.timeout,
+  transformResponse: [(data) => {
+    try {
+      return JSONBigStr.parse(data)
+    } catch {
+      return data
+    }
+  }]
 })
 
 const AUTH_REQUIRED_KEYWORDS = ['请先登录', '请先登陆', '未登录', '登录失效', 'token缺失', 'token过期']
